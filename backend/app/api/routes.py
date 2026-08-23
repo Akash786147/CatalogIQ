@@ -17,6 +17,7 @@ Endpoints (all mounted under /api):
 """
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from datetime import datetime, timezone
@@ -34,6 +35,7 @@ from app.pipeline import stage7_corrections as corrections
 from app.pipeline.run import enrich_dataframe
 
 router = APIRouter(prefix="/api")
+log = logging.getLogger(__name__)
 
 # Analyst baseline from docs/00-brief.md: ~15 SKUs per analyst per 8-hour day.
 SKUS_PER_ANALYST_DAY = 15
@@ -74,38 +76,81 @@ class RunStore:
         self.input_name: str = ""
         self.completed_at: str = ""
         self.runtime_seconds: float = 0.0
+        self.state: str = "idle"  # idle | running | ready | failed
+        self.error: str | None = None
 
     @property
     def loaded(self) -> bool:
         return bool(self.records)
 
-    def run(self) -> None:
+    def run(self, force: bool = False) -> None:
         settings = get_settings()
         input_path = settings.input_csv
         if not input_path.exists():
-            raise HTTPException(
-                503, f"No input CSV at {input_path}. Place one there or POST /api/runs."
-            )
+            self.state = "failed"
+            self.error = f"No input CSV at {input_path}"
+            raise HTTPException(503, self.error)
+
         with self._lock:
-            t0 = time.time()
-            df = load_input_csv(input_path)
-            records, stats = enrich_dataframe(df)
+            # Double-checked: a caller that queued behind a run in progress must
+            # not start the whole pipeline over again once it acquires the lock.
+            if self.loaded and not force:
+                return
+            self.state = "running"
+            try:
+                t0 = time.time()
+                df = load_input_csv(input_path)
+                records, stats = enrich_dataframe(df)
 
-            # Reviewer corrections saved from a previous session apply on every run.
-            rules = corrections.load_correction_rules(settings.output_dir / "corrections.db")
-            if rules:
-                corrections.apply_correction_rules(records, rules)
+                # Reviewer corrections from a previous session apply on every run.
+                rules = corrections.load_correction_rules(settings.output_dir / "corrections.db")
+                if rules:
+                    corrections.apply_correction_rules(records, rules)
 
-            self.records = records
-            self.raw_rows = df.to_dict("records")
-            self.stats = stats
-            self.input_name = input_path.name
-            self.completed_at = datetime.now(timezone.utc).isoformat()
-            self.runtime_seconds = round(time.time() - t0, 2)
+                self.records = records
+                self.raw_rows = df.to_dict("records")
+                self.stats = stats
+                self.input_name = input_path.name
+                self.completed_at = datetime.now(timezone.utc).isoformat()
+                self.runtime_seconds = round(time.time() - t0, 2)
+                self.state = "ready"
+                self.error = None
+            except Exception as e:
+                self.state = "failed"
+                self.error = str(e)
+                raise
+
+    def start_background(self) -> None:
+        """Kick off a run without blocking the caller."""
+        if self.state == "running" or self.loaded:
+            return
+        threading.Thread(target=lambda: self._warm_quietly(), daemon=True).start()
+
+    def _warm_quietly(self) -> None:
+        try:
+            self.run()
+        except Exception:
+            log.exception("background run failed")
 
     def ensure(self) -> None:
-        if not self.loaded:
-            self.run()
+        """Guarantee a run is available, WITHOUT blocking the request on it.
+
+        A full run can take minutes when an LLM is configured, which is longer
+        than the edge proxies in front of this service will hold a connection -
+        blocking here returns a 502 rather than data. So a request that arrives
+        before the run is ready gets a 503 telling it to retry, and the UI shows
+        a warming state instead of hanging.
+        """
+        if self.loaded:
+            return
+        if self.state == "failed":
+            raise HTTPException(503, f"Last run failed: {self.error}")
+        self.start_background()
+        raise HTTPException(
+            503,
+            "Enrichment run still warming up — retry shortly.",
+            headers={"Retry-After": "10"},
+        )
 
     def find(self, row_id: str) -> tuple[EnrichedRecord, dict]:
         self.ensure()
@@ -198,9 +243,24 @@ def _row_json(record: EnrichedRecord, raw: dict) -> dict[str, Any]:
 # Endpoints
 # --------------------------------------------------------------------------
 
+@router.get("/status")
+def run_status() -> dict:
+    """Cheap, never blocks — lets the UI show a warming state while the first
+    run completes."""
+    if not store.loaded and store.state == "idle":
+        store.start_background()
+    return {
+        "state": store.state,
+        "ready": store.loaded,
+        "rows": len(store.records),
+        "error": store.error,
+        "llm_provider": active_provider(),
+    }
+
+
 @router.post("/runs")
 def trigger_run() -> dict:
-    store.run()
+    store.run(force=True)
     return {"status": "ok", "rows": len(store.records), "runtime_seconds": store.runtime_seconds}
 
 

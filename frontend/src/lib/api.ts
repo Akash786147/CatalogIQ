@@ -28,6 +28,24 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
+/** Carries the HTTP status so callers can tell "still warming" (503) apart
+ *  from a genuine failure. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+
+  /** The backend returns 503 while the first enrichment run completes. That is
+   *  a wait, not a failure — the caller should retry rather than show an error. */
+  get isWarming(): boolean {
+    return this.status === 503;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
@@ -42,12 +60,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* non-JSON error body — the status line is all we have */
     }
-    throw new Error(detail);
+    throw new ApiError(detail, res.status);
   }
   return res.json() as Promise<T>;
 }
 
+export interface RunStatus {
+  state: "idle" | "running" | "ready" | "failed";
+  ready: boolean;
+  rows: number;
+  error: string | null;
+  llm_provider: string | null;
+}
+
 export const api = {
+  /** Cheap and never blocks — safe to poll while the first run warms. */
+  getStatus(): Promise<RunStatus> {
+    return request<RunStatus>("/api/status");
+  },
+
   getRunStats(): Promise<RunStats> {
     return request<RunStats>("/api/runs/latest");
   },

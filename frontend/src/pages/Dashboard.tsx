@@ -9,12 +9,32 @@ const num = new Intl.NumberFormat("en-US");
 export default function Dashboard() {
   const { data, isLoading } = useQuery({ queryKey: ["run"], queryFn: api.getRunStats });
 
+  // Polled only while the run is still building, so the warming state can say
+  // what is actually happening rather than showing a bare skeleton for minutes.
+  const { data: status } = useQuery({
+    queryKey: ["status"],
+    queryFn: api.getStatus,
+    enabled: !data,
+    refetchInterval: (q) => (q.state.data?.ready ? false : 4_000),
+  });
+  const warming = !data && status?.state !== "failed";
+
   if (isLoading || !data) {
     return (
       <>
         <div className="hero">
-          <div className="skeleton" style={{ width: 180, opacity: 0.3 }} />
-          <div className="skeleton" style={{ height: 40, width: "55%", marginTop: 16, opacity: 0.3 }} />
+          <div className="eyebrow">
+            <span aria-hidden>❯</span> {warming ? "Enriching" : "Loading"}
+          </div>
+          <h1>{warming ? "Running the pipeline…" : "Loading run…"}</h1>
+          {warming ? (
+            <p>
+              The first request builds the whole run: 1,000 rows through seven stages
+              {status?.llm_provider ? ` with ${status.llm_provider} classification` : ""}. This
+              takes under a minute on a warm instance, longer on a cold one. The page fills in on
+              its own — no need to refresh.
+            </p>
+          ) : null}
         </div>
         <div className="tiles">
           {Array.from({ length: 4 }).map((_, i) => (
