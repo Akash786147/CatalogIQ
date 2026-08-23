@@ -35,18 +35,22 @@ export default function ReviewQueue() {
     queryFn: () => api.getRows({ search, manufacturer, flag }),
   });
 
-  const { data: allRows = [] } = useQuery({ queryKey: ["rows", "", "", ""], queryFn: () => api.getRows({}) });
+  // Filter options come from the whole run, not just the current page of rows.
+  const { data: manufacturers = [] } = useQuery({
+    queryKey: ["manufacturers"],
+    queryFn: api.getManufacturers,
+    staleTime: Infinity,
+  });
+  const { data: flags = [] } = useQuery({
+    queryKey: ["flags"],
+    queryFn: api.getFlags,
+    staleTime: Infinity,
+  });
 
-  const manufacturers = useMemo(
-    () => [...new Set(allRows.map((r) => r.source.Part_Manuf))].sort(),
-    [allRows],
-  );
-  const flags = useMemo(() => [...new Set(allRows.flatMap((r) => r.flags))].sort(), [allRows]);
-
-  // Most-doubtful first: flagged rows rise, then lowest confidence.
+  // The backend already sorts most-doubtful-first; re-sort locally so the
+  // order stays stable if a correction changes a row's flags in place.
   const sorted = useMemo(
-    () =>
-      [...rows].sort((a, b) => b.flags.length - a.flags.length || weakest(a) - weakest(b)),
+    () => [...rows].sort((a, b) => b.flags.length - a.flags.length || weakest(a) - weakest(b)),
     [rows],
   );
 

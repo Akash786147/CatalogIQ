@@ -1,16 +1,21 @@
 /** The single seam between the UI and the pipeline.
  *
- * Every component talks to this module and nothing else. While the backend is
- * being built, `USE_MOCK` serves fixtures shaped exactly like the real
- * responses. To go live: set `VITE_USE_MOCK=false` (or just start the backend
- * — see below). No component changes.
+ * Every component talks to this module and nothing else. It calls the FastAPI
+ * backend directly — there is no mock layer.
  *
- * Backend contract, matching backend/app/api/routes/:
+ * In development, vite.config.ts proxies /api to http://localhost:8000, so
+ * VITE_API_BASE can stay empty and no CORS setup is needed. Set VITE_API_BASE
+ * only when the backend lives on a different origin.
+ *
+ * Backend contract — backend/app/api/routes.py:
  *   GET  /api/runs/latest                  -> RunStats
+ *   POST /api/runs                         -> re-run the pipeline
  *   GET  /api/rows?search=&manufacturer=   -> EnrichedRow[]
  *   GET  /api/rows/:rowId                  -> EnrichedRow
  *   POST /api/corrections                  -> PropagationResult
  *   GET  /api/search?q=                    -> SearchComparison
+ *   GET  /api/manufacturers                -> string[]
+ *   GET  /api/flags                        -> string[]
  */
 
 import type {
@@ -20,12 +25,8 @@ import type {
   RunStats,
   SearchComparison,
 } from "./types";
-import * as mock from "./mockData";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
-
-/** Defaults to mock unless explicitly disabled, so `npm run dev` works alone. */
-export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -33,22 +34,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
   if (!res.ok) {
-    throw new Error(`${init?.method ?? "GET"} ${path} failed: ${res.status} ${res.statusText}`);
+    // FastAPI puts the useful part in `detail`; surface it rather than a bare status.
+    let detail = `${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.detail) detail = String(body.detail);
+    } catch {
+      /* non-JSON error body — the status line is all we have */
+    }
+    throw new Error(detail);
   }
   return res.json() as Promise<T>;
 }
 
-/** Small delay on mock reads so loading states are actually exercised. */
-const settle = <T>(value: T, ms = 220): Promise<T> =>
-  new Promise((resolve) => setTimeout(() => resolve(value), ms));
-
 export const api = {
   getRunStats(): Promise<RunStats> {
-    return USE_MOCK ? settle(mock.runStats) : request<RunStats>("/api/runs/latest");
+    return request<RunStats>("/api/runs/latest");
+  },
+
+  /** Re-runs the pipeline over the configured input CSV. */
+  rerun(): Promise<{ status: string; rows: number; runtime_seconds: number }> {
+    return request("/api/runs", { method: "POST" });
   },
 
   getRows(params: ReviewQueueParams = {}): Promise<EnrichedRow[]> {
-    if (USE_MOCK) return settle(mock.filterRows(params));
     const qs = new URLSearchParams();
     if (params.search) qs.set("search", params.search);
     if (params.manufacturer) qs.set("manufacturer", params.manufacturer);
@@ -58,11 +67,6 @@ export const api = {
   },
 
   getRow(rowId: string): Promise<EnrichedRow> {
-    if (USE_MOCK) {
-      const row = mock.rows.find((r) => r.row_id === rowId);
-      if (!row) return Promise.reject(new Error(`No row ${rowId}`));
-      return settle(row);
-    }
     return request<EnrichedRow>(`/api/rows/${encodeURIComponent(rowId)}`);
   },
 
@@ -75,7 +79,6 @@ export const api = {
     scopeField: string;
     scopeValue: string;
   }): Promise<PropagationResult> {
-    if (USE_MOCK) return settle(mock.propagate(input), 500);
     return request<PropagationResult>("/api/corrections", {
       method: "POST",
       body: JSON.stringify(input),
@@ -83,7 +86,14 @@ export const api = {
   },
 
   compareSearch(query: string): Promise<SearchComparison> {
-    if (USE_MOCK) return settle(mock.compareSearch(query), 320);
     return request<SearchComparison>(`/api/search?q=${encodeURIComponent(query)}`);
+  },
+
+  getManufacturers(): Promise<string[]> {
+    return request<string[]>("/api/manufacturers");
+  },
+
+  getFlags(): Promise<string[]> {
+    return request<string[]>("/api/flags");
   },
 };

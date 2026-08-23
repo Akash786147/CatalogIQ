@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { api, USE_MOCK } from "@/lib/api";
+import { api } from "@/lib/api";
 
 const NAV = [
   { to: "/", label: "Overview", end: true, icon: "◧" },
@@ -72,13 +72,17 @@ export default function Layout() {
           <span
             className="sidebar__status"
             title={
-              USE_MOCK
-                ? "Set VITE_USE_MOCK=false to hit the FastAPI backend"
-                : "Connected to the FastAPI backend"
+              stats?.llm_provider
+                ? `LLM enrichment via ${stats.llm_provider}`
+                : "No LLM key configured — the pipeline runs deterministic-only"
             }
           >
             <span className="sidebar__dot" />
-            {USE_MOCK ? "Demo data — backend not connected" : "Live backend"}
+            {stats
+              ? stats.llm_provider
+                ? `Live · ${stats.llm_provider}`
+                : "Live · deterministic only"
+              : "Connecting to backend…"}
           </span>
           <span>Built for Unilog · UniHack</span>
         </div>

@@ -1,79 +1,119 @@
-"""Output writers.
-
-Two files of identical shape:
-  enriched.csv    -- the 252 columns, values only, headers untouched
-  provenance.json -- the same cells as full objects, for the reviewer UI
 """
-
+Output serialization: the 252-column CSV (values only, headers untouched) and
+the parallel provenance file of identical shape, where each cell holds
+state + confidence + reason instead of a display value.
+"""
 from __future__ import annotations
 
-import csv
 import json
 from pathlib import Path
 
-from app.core.cell import EnrichedRow
-from app.core.schema import (
-    MAX_ATTRIBUTES,
-    attribute_columns,
-    delivery_headers,
-)
+import pandas as pd
+
+from app.core.schema import Cell, EnrichedRecord
+
+# maps output column name -> attribute-cell key, for the fixed (non-numbered) fields
+FIXED_FIELD_MAP = {
+    "Mfg_Part_Num": None,       # copied straight from input, not a Cell
+    "Part_Desc": None,
+    "E1_Brand": None,
+    "Unilog_Brand": None,
+    "DIB_Brand": None,
+    "Part_Manuf": None,
+    "Classpath": None,
+    "MANUFACTURER_NAME": "MANUFACTURER_NAME",
+    "BRAND_NAME": "BRAND_NAME",
+    "MOBILE_DESC": "MOBILE_DESC",
+    "INVOICE_DESC": "INVOICE_DESC",
+    "SHORT_DESC": "SHORT_DESC",
+    "LONG_DESC1": "LONG_DESC1",
+    "RETAIL_DESC": "RETAIL_DESC",
+}
+
+N_ATTRIBUTE_SLOTS = 50  # ATTRIBUTE_LABEL/VALUE/UOM 1..50, per the delivery format
 
 
-def _flatten(row: EnrichedRow) -> dict[str, str]:
-    """Collapse an EnrichedRow into the flat 252-column view.
+def _row_to_output_dict(record: EnrichedRecord, header: list[str], raw_row: dict) -> dict:
+    out = {col: "" for col in header}
 
-    Unsourced cells become blank strings -- Cell.as_output() enforces that.
-    """
-    out: dict[str, str] = {h: "" for h in delivery_headers()}
+    # pass through raw input columns verbatim
+    out["Mfg_Part_Num"] = raw_row.get("Mfg_Part_Num", "")
+    out["Part_Desc"] = raw_row.get("Part_Desc", "")
+    out["E1_Brand"] = raw_row.get("E1_Brand", "")
+    out["Unilog_Brand"] = raw_row.get("Unilog_Brand", "")
+    out["DIB_Brand"] = raw_row.get("DIB_Brand", "")
+    out["Part_Manuf"] = raw_row.get("Part_Manuf", "")
+    out["Classpath"] = record.classpath
 
-    # Input passthrough: byte-for-byte, never enriched.
-    for col, value in row.source.items():
-        if col in out:
-            out[col] = value or ""
+    out["MANUFACTURER_NAME"] = record.manufacturer_name.display_value()
+    out["BRAND_NAME"] = record.brand_name.display_value()
+    out["MOBILE_DESC"] = record.mobile_desc.display_value()
+    out["INVOICE_DESC"] = record.invoice_desc.display_value()
+    out["SHORT_DESC"] = record.short_desc.display_value()
+    out["LONG_DESC1"] = record.long_desc1.display_value()
+    out["RETAIL_DESC"] = record.retail_desc.display_value()
 
-    out["Classpath"] = row.classpath.as_output()
-
-    for header, cell in row.fields.items():
-        if header in out:
-            out[header] = cell.as_output()
-
-    # Attribute triplets. The label is emitted even when the value is unknown --
-    # the label set is the checklist, the blanks are the honest gaps.
-    for i, attr in enumerate(row.attributes[:MAX_ATTRIBUTES], start=1):
-        label_col, value_col, uom_col = attribute_columns(i)
-        out[label_col] = attr.label
-        out[value_col] = attr.cell.as_output()
-        out[uom_col] = attr.uom if attr.cell.is_populated else ""
+    # numbered attribute slots, in the order the classpath schema declares them
+    for i, (label, cell) in enumerate(record.attributes.items(), start=1):
+        if i > N_ATTRIBUTE_SLOTS:
+            break
+        out[f"ATTRIBUTE_LABEL {i}"] = label
+        out[f"ATTRIBUTE_VALUE {i}"] = cell.display_value()
+        out[f"ATTRIBUTE_UOM {i}"] = cell.uom or ""
 
     return out
 
 
-def write_csv(rows: list[EnrichedRow], path: Path) -> Path:
-    """Write the deliverable. All 252 headers, original order, always."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    headers = delivery_headers()
-    with path.open("w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=headers)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow(_flatten(row))
-    return path
+def _row_to_provenance_dict(record: EnrichedRecord, header: list[str]) -> dict:
+    out = {col: "" for col in header}
+    out["Mfg_Part_Num"] = record.mfg_part_num
+    out["Classpath"] = record.classpath
+
+    def cell_json(cell: Cell) -> str:
+        return json.dumps({
+            "state": cell.state.value,
+            "confidence": round(cell.confidence, 3),
+            "reason": cell.reason,
+            "evidence": cell.evidence.model_dump(exclude_none=True),
+        }, ensure_ascii=False)
+
+    for field, cell in [
+        ("MANUFACTURER_NAME", record.manufacturer_name),
+        ("BRAND_NAME", record.brand_name),
+        ("MOBILE_DESC", record.mobile_desc),
+        ("INVOICE_DESC", record.invoice_desc),
+        ("SHORT_DESC", record.short_desc),
+        ("LONG_DESC1", record.long_desc1),
+        ("RETAIL_DESC", record.retail_desc),
+    ]:
+        if field in out:
+            out[field] = cell_json(cell)
+
+    for i, (label, cell) in enumerate(record.attributes.items(), start=1):
+        if i > N_ATTRIBUTE_SLOTS:
+            break
+        out[f"ATTRIBUTE_VALUE {i}"] = cell_json(cell)
+
+    return out
 
 
-def write_xlsx(rows: list[EnrichedRow], path: Path) -> Path:
-    """Same content as write_csv, as a workbook. The brief accepts either."""
-    import pandas as pd
+def write_output(
+    records: list[EnrichedRecord],
+    raw_rows: list[dict],
+    header: list[str],
+    output_path: Path,
+) -> None:
+    rows = [_row_to_output_dict(r, header, raw) for r, raw in zip(records, raw_rows)]
+    df = pd.DataFrame(rows, columns=header)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_path.suffix.lower() == ".xlsx":
+        df.to_excel(output_path, index=False)
+    else:
+        df.to_csv(output_path, index=False)
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    frame = pd.DataFrame([_flatten(r) for r in rows], columns=delivery_headers())
-    frame.to_excel(path, index=False, engine="openpyxl")
-    return path
 
-
-def write_provenance(rows: list[EnrichedRow], path: Path) -> Path:
-    """The parallel evidence file the reviewer queue reads."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = [row.model_dump(mode="json") for row in rows]
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, ensure_ascii=False)
-    return path
+def write_provenance(records: list[EnrichedRecord], header: list[str], output_path: Path) -> None:
+    rows = [_row_to_provenance_dict(r, header) for r in records]
+    df = pd.DataFrame(rows, columns=header)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path, index=False)

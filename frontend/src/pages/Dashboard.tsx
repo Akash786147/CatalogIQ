@@ -73,15 +73,22 @@ export default function Dashboard() {
           <div className="tile__foot">Flagged, ranked by doubt, and queued</div>
         </div>
         <div className="tile tile--navy">
-          <div className="tile__label">Analyst-hours saved</div>
-          <div className="tile__value">{data.analyst_hours_saved}</div>
-          <div className="tile__foot">Against a baseline of ~15 SKUs per analyst per day</div>
+          <div className="tile__label">Analyst-hours avoided</div>
+          <div className="tile__value">{num.format(data.analyst_hours_saved)}</div>
+          <div className="tile__foot">
+            On the {num.format(data.rows_clean)} auto-approved rows only, at ~15 SKUs per analyst
+            per day. Reviewing the other {data.rows_needing_review} still costs time.
+          </div>
         </div>
         <div className="tile tile--blue">
-          <div className="tile__label">Cost for this run</div>
-          <div className="tile__value">${data.cost_usd.toFixed(2)}</div>
+          <div className="tile__label">Run time</div>
+          <div className="tile__value">{data.runtime_seconds.toFixed(1)}s</div>
           <div className="tile__foot">
-            {data.llm_calls} model calls — templates amortise across each family
+            {data.llm_calls === 0
+              ? "0 model calls — every value came from a deterministic path"
+              : `${data.llm_calls} ${data.llm_provider ?? "model"} calls · ${num.format(
+                  data.llm_input_tokens + data.llm_output_tokens,
+                )} tokens`}
           </div>
         </div>
       </div>
@@ -114,10 +121,11 @@ export default function Dashboard() {
 
         <section className="card">
           <div className="card__head">
-            <div className="eyebrow eyebrow--dark">Calibration</div>
+            <div className="eyebrow eyebrow--dark">Confidence</div>
             <div className="card__title">Confidence across populated cells</div>
             <div className="card__hint">
-              Calibrated on the labelled rows, so 90% confidence means 90% correct
+              Raw, not yet calibrated — the delivery format ships only 2 labelled rows, which is
+              not enough to fit a calibration curve against
             </div>
           </div>
           <div className="card__body">

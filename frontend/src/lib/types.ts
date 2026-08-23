@@ -53,8 +53,15 @@ export interface RunStats {
   confidence_histogram: number[];
   lov_conformance: number;
   char_limit_compliance: number;
-  cost_usd: number;
+  /** Token counts rather than a dollar figure: pricing varies by model and
+   *  tier, and the backend deliberately refuses to report a cost it cannot
+   *  verify. See backend/app/pipeline/report.py. */
   llm_calls: number;
+  llm_input_tokens: number;
+  llm_output_tokens: number;
+  /** null when no key is configured — the pipeline then runs deterministic-only. */
+  llm_provider: string | null;
+  runtime_seconds: number;
   analyst_hours_saved: number;
 }
 
