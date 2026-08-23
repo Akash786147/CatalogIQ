@@ -1,0 +1,118 @@
+/* CatalogIQ design tokens.
+ *
+ * Brand values are lifted from unilogcorp.com's own stylesheets so this reads
+ * as a Unilog product rather than a hackathon skin:
+ *   navy   #0C2A4D   primary surface / headers
+ *   amber  #FF9D00   the signature accent
+ *   blue   #009EFF   interactive secondary
+ *   greys  #EEF1F6 / #E7EBF2 / #9AA6B8 / #5A6B82
+ *   type   Avenir (their brand face), Nunito Sans as the loaded fallback
+ *
+ * The chart palette below is NOT eyeballed. It was validated with the dataviz
+ * validator in both modes: lightness band, chroma floor, CVD separation,
+ * normal-vision floor, and contrast vs surface all pass.
+ */
+
+:root {
+  /* ---- brand ---- */
+  --navy-900: #0a1020;
+  --navy-800: #0f1b2e;
+  --navy-700: #0c2a4d;
+  --navy-600: #14264a;
+  --navy-500: #1c2740;
+
+  --amber-500: #ff9d00;
+  --amber-400: #fbc756;
+  --amber-600: #b08400;
+
+  --blue-500: #009eff;
+  --blue-600: #0b7fd4;
+
+  /* ---- surfaces & ink (light) ---- */
+  --surface: #ffffff;
+  --surface-sunken: #f4f6fa;
+  --surface-raised: #ffffff;
+  --surface-inverse: var(--navy-700);
+  --border: #e7ebf2;
+  --border-strong: #d3dae6;
+
+  --ink-primary: #0f1b2e;
+  --ink-secondary: #5a6b82;
+  --ink-muted: #8a94a6;
+  --ink-inverse: #ffffff;
+
+  /* ---- status ---- */
+  --good: #15803d;
+  --good-soft: #e8f5ec;
+  --warning: #b08400;
+  --warning-soft: #fdf5e3;
+  --critical: #b42318;
+  --critical-soft: #fdeceb;
+
+  /* ---- provenance / chart categorical (validated, light mode) ---- */
+  --prov-parsed: #1f6feb;
+  --prov-lookup: #0e9f6e;
+  --prov-inferred: #8b5cf6;
+  --prov-retrieved: #c2610f;
+  --prov-gap: #94a3b8;
+
+  --prov-parsed-soft: #e8f0fe;
+  --prov-lookup-soft: #e6f6f0;
+  --prov-inferred-soft: #f1ebfe;
+  --prov-retrieved-soft: #fbeee2;
+  --prov-gap-soft: #eef1f6;
+
+  /* ---- type ---- */
+  --font-sans: "Avenir Next", "Avenir", "Nunito Sans", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ---- geometry ---- */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px rgba(12, 42, 77, 0.06);
+  --shadow: 0 2px 8px rgba(12, 42, 77, 0.08);
+  --shadow-lg: 0 8px 28px rgba(12, 42, 77, 0.12);
+
+  --sidebar-w: 236px;
+  --topbar-h: 60px;
+}
+
+:root[data-theme="dark"] {
+  --surface: #14181f;
+  --surface-sunken: #0e1116;
+  --surface-raised: #1a1f28;
+  --surface-inverse: #0a1020;
+  --border: #262d38;
+  --border-strong: #38414f;
+
+  --ink-primary: #e8ecf3;
+  --ink-secondary: #9aa6b8;
+  --ink-muted: #6b7a90;
+  --ink-inverse: #ffffff;
+
+  --good: #34d399;
+  --good-soft: #10261d;
+  --warning: #e0a92a;
+  --warning-soft: #2a2110;
+  --critical: #f87171;
+  --critical-soft: #2c1516;
+
+  /* dark-mode steps are re-derived, not flipped — validated separately */
+  --prov-parsed: #4589e0;
+  --prov-lookup: #17a97a;
+  --prov-inferred: #9070e8;
+  --prov-retrieved: #ce7a18;
+  --prov-gap: #64748b;
+
+  --prov-parsed-soft: #16243a;
+  --prov-lookup-soft: #0e2a22;
+  --prov-inferred-soft: #221b3a;
+  --prov-retrieved-soft: #2c1f10;
+  --prov-gap-soft: #1e242e;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.55);
+}
