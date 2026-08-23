@@ -11,14 +11,20 @@ export default function Dashboard() {
 
   if (isLoading || !data) {
     return (
-      <div className="tiles">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div className="tile" key={i}>
-            <div className="skeleton" style={{ width: "55%" }} />
-            <div className="skeleton" style={{ height: 28, width: "40%", marginTop: 10 }} />
-          </div>
-        ))}
-      </div>
+      <>
+        <div className="hero">
+          <div className="skeleton" style={{ width: 180, opacity: 0.3 }} />
+          <div className="skeleton" style={{ height: 40, width: "55%", marginTop: 16, opacity: 0.3 }} />
+        </div>
+        <div className="tiles">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div className="tile" key={i}>
+              <div className="skeleton" style={{ width: "55%" }} />
+              <div className="skeleton" style={{ height: 30, width: "42%", marginTop: 12 }} />
+            </div>
+          ))}
+        </div>
+      </>
     );
   }
 
@@ -27,19 +33,33 @@ export default function Dashboard() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Run overview</h1>
-          <p>
-            {num.format(data.rows_total)} rows enriched from{" "}
-            <span className="mono">{data.input_file}</span>. Every populated cell below is
-            traceable to its source — nothing here was invented to fill a blank.
-          </p>
+      <section className="hero">
+        <div className="eyebrow">
+          <span aria-hidden>❯</span> Evidence-first product content
         </div>
-        <Link to="/review" className="btn btn--accent">
-          Review {data.rows_needing_review} flagged products →
-        </Link>
-      </div>
+        <div className="hero__row">
+          <div>
+            <h1>
+              {num.format(data.rows_clean)} products ready.
+              <br />
+              {data.rows_needing_review} need a human.
+            </h1>
+            <p>
+              Enriched from <span className="mono">{data.input_file}</span> — six columns of
+              distributor shorthand into the full 252-column delivery format. Every populated cell
+              below can be traced to its source, and nothing was invented to fill a blank.
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link to="/review" className="btn btn--accent">
+              Open the review queue
+            </Link>
+            <Link to="/search" className="btn btn--ghost-light">
+              See the search proof
+            </Link>
+          </div>
+        </div>
+      </section>
 
       <div className="tiles">
         <div className="tile tile--good">
@@ -47,17 +67,17 @@ export default function Dashboard() {
           <div className="tile__value">{num.format(data.rows_clean)}</div>
           <div className="tile__foot">{pct(autoApproved)} of rows need no human review</div>
         </div>
-        <div className="tile tile--accent">
+        <div className="tile tile--gold">
           <div className="tile__label">Needs a human</div>
           <div className="tile__value">{num.format(data.rows_needing_review)}</div>
-          <div className="tile__foot">Flagged, ranked, and queued</div>
+          <div className="tile__foot">Flagged, ranked by doubt, and queued</div>
         </div>
         <div className="tile tile--navy">
           <div className="tile__label">Analyst-hours saved</div>
           <div className="tile__value">{data.analyst_hours_saved}</div>
-          <div className="tile__foot">vs. ~15 SKUs per analyst per day</div>
+          <div className="tile__foot">Against a baseline of ~15 SKUs per analyst per day</div>
         </div>
-        <div className="tile">
+        <div className="tile tile--blue">
           <div className="tile__label">Cost for this run</div>
           <div className="tile__value">${data.cost_usd.toFixed(2)}</div>
           <div className="tile__foot">
@@ -67,19 +87,21 @@ export default function Dashboard() {
       </div>
 
       <div className="banner banner--info">
-        <span aria-hidden>◆</span>
-        <div>
-          <strong>Fill rate {pct(fillRate)}, not 100% — on purpose.</strong> A system that fills
+        <span className="banner__icon">
+          <span aria-hidden>i</span>
+        </span>
+        <div className="banner__body">
+          <strong>Fill rate is {pct(fillRate)}, not 100% — on purpose.</strong> A system that fills
           every cell at 70% accuracy costs an analyst a full re-check of everything, which is the
-          problem we set out to solve. The{" "}
-          {num.format(data.provenance_counts.GAP)} blank cells are ones where no evidence supported
-          a value.
+          problem we set out to solve. The {num.format(data.provenance_counts.GAP)} blank cells are
+          ones where no evidence supported a value, so none was written.
         </div>
       </div>
 
-      <div style={{ display: "grid", gap: 18, gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)" }}>
+      <div className="grid-2">
         <section className="card">
           <div className="card__head">
+            <div className="eyebrow eyebrow--dark">Provenance</div>
             <div className="card__title">Where every value came from</div>
             <div className="card__hint">
               Four tiers of evidence, plus the cells we deliberately left blank
@@ -92,6 +114,7 @@ export default function Dashboard() {
 
         <section className="card">
           <div className="card__head">
+            <div className="eyebrow eyebrow--dark">Calibration</div>
             <div className="card__title">Confidence across populated cells</div>
             <div className="card__hint">
               Calibrated on the labelled rows, so 90% confidence means 90% correct
@@ -103,11 +126,13 @@ export default function Dashboard() {
         </section>
       </div>
 
-      <section className="card" style={{ marginTop: 18 }}>
+      <section className="card" style={{ marginTop: 20 }}>
         <div className="card__head">
-          <div className="card__title">Output compliance</div>
+          <div className="eyebrow eyebrow--dark">Compliance</div>
+          <div className="card__title">Checks that hold without ground truth</div>
           <div className="card__hint">
-            Checks that hold regardless of ground truth — they measure our own output
+            These measure our own output, so they are available today — accuracy figures are not,
+            until a hand-labelled set exists
           </div>
         </div>
         <div className="card__body">

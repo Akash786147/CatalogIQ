@@ -53,18 +53,33 @@ export function ProvenanceBar({ counts }: { counts: Record<Provenance | "GAP", n
         })}
       </div>
 
-      <div className="legend">
-        {PROVENANCE_ORDER.map((key) => {
-          const n = counts[key] ?? 0;
-          return (
-            <span key={key} className="legend__item" title={PROVENANCE_BLURB[key]}>
-              <span className="legend__swatch" style={{ background: PROVENANCE_VAR[key] }} />
-              {PROVENANCE_LABEL[key]}
-              <span className="legend__value">{fmt.format(n)}</span>
-            </span>
-          );
-        })}
-      </div>
+      {/* A breakdown table doubles as the accessible view of the same data —
+          identity never rests on colour alone. */}
+      <table className="breakdown">
+        <tbody>
+          {PROVENANCE_ORDER.map((key) => {
+            const n = counts[key] ?? 0;
+            const populated = total - (counts.GAP ?? 0);
+            const share = key === "GAP" ? n / total : n / Math.max(populated, 1);
+            return (
+              <tr key={key} onMouseEnter={() => setHover(key)} onMouseLeave={() => setHover(null)}>
+                <td className="breakdown__name">
+                  <span className="legend__swatch" style={{ background: PROVENANCE_VAR[key] }} />
+                  {PROVENANCE_LABEL[key]}
+                </td>
+                <td className="breakdown__desc">{PROVENANCE_BLURB[key]}</td>
+                <td className="breakdown__num">{fmt.format(n)}</td>
+                <td className="breakdown__pct">
+                  {(share * 100).toFixed(0)}%
+                  <span className="breakdown__of">
+                    {key === "GAP" ? " of all" : " of filled"}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -88,6 +103,16 @@ export function ConfidenceHistogram({
 
   return (
     <div>
+      <div
+        style={{
+          fontSize: 11.5,
+          color: "var(--ink-muted)",
+          marginBottom: 6,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        peak {fmt.format(max)} cells
+      </div>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: H }}>
         {buckets.map((n, i) => {
           const lo = i / buckets.length;

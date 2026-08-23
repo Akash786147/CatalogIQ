@@ -53,6 +53,9 @@ export default function SearchProof() {
     <>
       <div className="page-head">
         <div>
+          <div className="eyebrow eyebrow--dark">
+            <span aria-hidden>❯</span> The commercial case
+          </div>
           <h1>Search proof</h1>
           <p>
             The commercial case in one query. A buyer searches the way a buyer talks — the raw
@@ -84,7 +87,7 @@ export default function SearchProof() {
       <div className="filters" style={{ marginTop: -6 }}>
         <span className="tiny muted">Try:</span>
         {SUGGESTIONS.map((s) => (
-          <button key={s} type="button" className="btn btn--ghost tiny" onClick={() => submit(s)}>
+          <button key={s} type="button" className="btn btn--sm" onClick={() => submit(s)}>
             {s}
           </button>
         ))}

@@ -71,7 +71,7 @@ function FieldRow({
         {populated ? <ConfidenceMeter value={cell.confidence} /> : null}
         <ProvenanceChip state={cell.state} />
         {onCorrect ? (
-          <button className="btn btn--ghost tiny" onClick={onCorrect} style={{ padding: "3px 8px" }}>
+          <button className="btn btn--ghost btn--sm" onClick={onCorrect}>
             Correct
           </button>
         ) : null}
@@ -113,6 +113,8 @@ export default function RowDetail() {
     setResult(null);
   };
 
+  const composed = ["MOBILE_DESC", "INVOICE_DESC"].filter((f) => row.fields[f]?.value);
+
   return (
     <>
       <div className="page-head">
@@ -120,19 +122,25 @@ export default function RowDetail() {
           <Link to="/review" className="tiny">
             ← Back to queue
           </Link>
-          <h1 style={{ marginTop: 6 }}>
+          <h1 style={{ marginTop: 10 }}>
             <span className="mono">{row.row_id}</span>
           </h1>
           <p>
-            {row.classpath.value ?? "Unclassified"} · {row.source.Part_Manuf}
+            {row.classpath.value ?? "Unclassified"} · supplied by {row.source.Part_Manuf}
           </p>
+        </div>
+        <div className="tiny muted">
+          {row.attributes.filter((a) => a.cell.value).length} of {row.attributes.length} attributes
+          evidenced
         </div>
       </div>
 
       {result ? (
         <div className="banner banner--good">
-          <span aria-hidden>✓</span>
-          <div>
+          <span className="banner__icon">
+            <span aria-hidden>✓</span>
+          </span>
+          <div className="banner__body">
             <strong>
               Correction saved as a rule — applied to {result.rows_affected} rows.
             </strong>{" "}
@@ -148,8 +156,10 @@ export default function RowDetail() {
 
       {row.flags.length > 0 && !result ? (
         <div className="banner banner--warn">
-          <span aria-hidden>⚠</span>
-          <div>
+          <span className="banner__icon">
+            <span aria-hidden>!</span>
+          </span>
+          <div className="banner__body">
             <strong>This product was flagged.</strong>{" "}
             {row.flags.includes("distributor_in_manufacturer_field")
               ? "Part_Manuf is a distributor, not a manufacturer — the value below was copied through and needs resolving."
@@ -267,22 +277,18 @@ export default function RowDetail() {
             </div>
             <div className="card__body">
               <EvidenceSource text={row.source.Part_Desc} span={activeSpan} />
-              <div style={{ marginTop: 12, display: "grid", gap: 7 }}>
+              <div style={{ marginTop: 14, display: "grid", gap: 9 }}>
                 {Object.entries(row.source)
                   .filter(([k]) => k !== "Part_Desc")
                   .map(([k, v]) => {
+                    // "-- Unbranded --" and friends carry no signal — show them
+                    // as the empty placeholders they are, not as data.
                     const placeholder = v.startsWith("--");
                     return (
-                      <div key={k} style={{ display: "flex", gap: 8, fontSize: 12 }}>
-                        <span className="muted" style={{ minWidth: 104 }}>
-                          {k}
-                        </span>
+                      <div key={k} className="srcrow">
+                        <span className="srcrow__key">{k}</span>
                         <span
-                          className="mono"
-                          style={{
-                            color: placeholder ? "var(--ink-muted)" : "var(--ink-primary)",
-                            fontStyle: placeholder ? "italic" : undefined,
-                          }}
+                          className={`srcrow__val${placeholder ? " srcrow__val--placeholder" : ""}`}
                         >
                           {v}
                         </span>
@@ -311,6 +317,9 @@ export default function RowDetail() {
             </div>
           </section>
 
+          {/* Only render once composition has actually run for this row —
+              an empty card reads as a bug, not as an honest gap. */}
+          {composed.length > 0 ? (
           <section className="card">
             <div className="card__head">
               <div className="card__title">Composed descriptions</div>
@@ -318,15 +327,14 @@ export default function RowDetail() {
                 Built from the facts above by formula — never written by a model
               </div>
             </div>
-            <div className="card__body" style={{ display: "grid", gap: 10 }}>
-              {["MOBILE_DESC", "INVOICE_DESC"].map((f) => {
+            <div className="card__body" style={{ display: "grid", gap: 12 }}>
+              {composed.map((f) => {
                 const cell = row.fields[f];
-                if (!cell?.value) return null;
                 return (
                   <div key={f}>
                     <div className="tiny muted" style={{ fontWeight: 700 }}>
                       {f}
-                      {f === "INVOICE_DESC" ? ` · ${cell.value.length}/40 chars` : ""}
+                      {f === "INVOICE_DESC" ? ` · ${(cell.value ?? "").length}/40 chars` : ""}
                     </div>
                     <div className="mono" style={{ marginTop: 3 }}>
                       {cellDisplay(cell)}
@@ -336,6 +344,7 @@ export default function RowDetail() {
               })}
             </div>
           </section>
+          ) : null}
         </aside>
       </div>
     </>

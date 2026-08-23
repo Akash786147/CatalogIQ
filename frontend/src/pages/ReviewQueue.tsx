@@ -54,10 +54,13 @@ export default function ReviewQueue() {
     <>
       <div className="page-head">
         <div>
+          <div className="eyebrow eyebrow--dark">
+            <span aria-hidden>❯</span> Ranked by doubt
+          </div>
           <h1>Review queue</h1>
           <p>
-            Ranked by doubt, not by row number. Open a product to see what every value was based
-            on — and correct it once to fix it everywhere.
+            Ordered by how uncertain we are, not by row number. Open a product to see what every
+            value was based on — and correct it once to fix it everywhere.
           </p>
         </div>
       </div>

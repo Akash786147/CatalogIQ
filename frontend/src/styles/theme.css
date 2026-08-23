@@ -1,55 +1,58 @@
-/* CatalogIQ design tokens.
+/* CatalogIQ design tokens — Unilog brand language.
  *
- * Brand values are lifted from unilogcorp.com's own stylesheets so this reads
- * as a Unilog product rather than a hackathon skin:
- *   navy   #0C2A4D   primary surface / headers
- *   amber  #FF9D00   the signature accent
- *   blue   #009EFF   interactive secondary
- *   greys  #EEF1F6 / #E7EBF2 / #9AA6B8 / #5A6B82
- *   type   Avenir (their brand face), Nunito Sans as the loaded fallback
+ * Values below are lifted from unilogcorp.com's own stylesheets, not guessed:
+ *   --secondary-light  #F7C948   the gold CTA  (their .hp4-btn--primary)
+ *   --primary-dark     #14264A   the navy that sits ON the gold
+ *   hero surface       #101113   near-black, not mid-navy
+ *   --viz-accent       #5FA8FF   their own chart blue
+ *   --viz-good/warn    #34D399 / #F0B46A
+ *   buttons            border-radius 999px, padding .85em 1.7em, weight 700
+ *   hero title         clamp(2.4rem,4.8vw,4.1rem)/1.04, tracking -.022em, 800
+ *   feature cards      radius 28px, linear-gradient(180deg,#f9fbfe,#eef4fc)
  *
- * The chart palette below is NOT eyeballed. It was validated with the dataviz
- * validator in both modes: lightness band, chroma floor, CVD separation,
- * normal-vision floor, and contrast vs surface all pass.
+ * The chart palette is NOT eyeballed — validated in both modes with the
+ * dataviz validator (lightness band, chroma floor, CVD separation,
+ * normal-vision floor, contrast).
  */
 
 :root {
   /* ---- brand ---- */
-  --navy-900: #0a1020;
-  --navy-800: #0f1b2e;
-  --navy-700: #0c2a4d;
-  --navy-600: #14264a;
-  --navy-500: #1c2740;
+  --gold: #f7c948;
+  --gold-bright: #ffd970;
+  --gold-deep: #e0b02c;
 
-  --amber-500: #ff9d00;
-  --amber-400: #fbc756;
-  --amber-600: #b08400;
+  --navy: #14264a;
+  --navy-deep: #0c1730;
 
-  --blue-500: #009eff;
-  --blue-600: #0b7fd4;
+  --ink-black: #101113;
+  --ink-black-soft: #1a1c21;
+
+  --blue: #009eff;
+  --blue-deep: #0b72c4;
+  --blue-viz: #5fa8ff;
 
   /* ---- surfaces & ink (light) ---- */
   --surface: #ffffff;
-  --surface-sunken: #f4f6fa;
+  --surface-sunken: #f4f7fb;
   --surface-raised: #ffffff;
-  --surface-inverse: var(--navy-700);
-  --border: #e7ebf2;
-  --border-strong: #d3dae6;
+  --surface-tint: linear-gradient(180deg, #f9fbfe, #eef4fc);
+  --border: #e6ecf4;
+  --border-strong: #d2dbe8;
 
-  --ink-primary: #0f1b2e;
+  --ink-primary: #14264a;
   --ink-secondary: #5a6b82;
   --ink-muted: #8a94a6;
   --ink-inverse: #ffffff;
 
   /* ---- status ---- */
   --good: #15803d;
-  --good-soft: #e8f5ec;
-  --warning: #b08400;
-  --warning-soft: #fdf5e3;
+  --good-soft: #e7f6ec;
+  --warning: #a97a12;
+  --warning-soft: #fdf4e0;
   --critical: #b42318;
-  --critical-soft: #fdeceb;
+  --critical-soft: #fdecea;
 
-  /* ---- provenance / chart categorical (validated, light mode) ---- */
+  /* ---- provenance / categorical (validated, light) ---- */
   --prov-parsed: #1f6feb;
   --prov-lookup: #0e9f6e;
   --prov-inferred: #8b5cf6;
@@ -57,7 +60,7 @@
   --prov-gap: #94a3b8;
 
   --prov-parsed-soft: #e8f0fe;
-  --prov-lookup-soft: #e6f6f0;
+  --prov-lookup-soft: #e4f6ef;
   --prov-inferred-soft: #f1ebfe;
   --prov-retrieved-soft: #fbeee2;
   --prov-gap-soft: #eef1f6;
@@ -67,39 +70,45 @@
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* ---- geometry ---- */
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --shadow-sm: 0 1px 2px rgba(12, 42, 77, 0.06);
-  --shadow: 0 2px 8px rgba(12, 42, 77, 0.08);
-  --shadow-lg: 0 8px 28px rgba(12, 42, 77, 0.12);
+  --track-tight: -0.022em;
 
-  --sidebar-w: 236px;
-  --topbar-h: 60px;
+  /* ---- geometry ---- */
+  --radius-pill: 999px;
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --shadow-sm: 0 1px 2px rgba(20, 38, 74, 0.05);
+  --shadow: 0 4px 16px rgba(20, 38, 74, 0.07);
+  --shadow-lg: 0 18px 48px rgba(20, 38, 74, 0.13);
+  --shadow-gold: 0 6px 20px rgba(247, 201, 72, 0.34);
+
+  --sidebar-w: 246px;
+  --topbar-h: 66px;
 }
 
 :root[data-theme="dark"] {
-  --surface: #14181f;
-  --surface-sunken: #0e1116;
-  --surface-raised: #1a1f28;
-  --surface-inverse: #0a1020;
-  --border: #262d38;
-  --border-strong: #38414f;
+  --surface: #17191e;
+  --surface-sunken: #101113;
+  --surface-raised: #1c1f26;
+  --surface-tint: linear-gradient(180deg, #1c1f26, #16181d);
+  --border: #2a2e37;
+  --border-strong: #3b414d;
 
-  --ink-primary: #e8ecf3;
+  --ink-primary: #eaeef5;
   --ink-secondary: #9aa6b8;
   --ink-muted: #6b7a90;
   --ink-inverse: #ffffff;
 
   --good: #34d399;
   --good-soft: #10261d;
-  --warning: #e0a92a;
+  --warning: #f0b46a;
   --warning-soft: #2a2110;
   --critical: #f87171;
   --critical-soft: #2c1516;
 
-  /* dark-mode steps are re-derived, not flipped — validated separately */
+  /* dark steps are re-derived, not flipped — validated separately */
   --prov-parsed: #4589e0;
   --prov-lookup: #17a97a;
   --prov-inferred: #9070e8;
@@ -112,7 +121,7 @@
   --prov-retrieved-soft: #2c1f10;
   --prov-gap-soft: #1e242e;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.6);
 }

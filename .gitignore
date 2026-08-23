@@ -34,3 +34,6 @@ Thumbs.db
 
 # TS incremental build cache
 *.tsbuildinfo
+
+# Local UI screenshots (verification only)
+.shots/

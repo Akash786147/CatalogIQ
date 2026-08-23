@@ -4,9 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { api, USE_MOCK } from "@/lib/api";
 
 const NAV = [
-  { to: "/", label: "Overview", end: true, icon: "▦" },
-  { to: "/review", label: "Review queue", icon: "◎", badgeKey: "review" as const },
-  { to: "/search", label: "Search proof", icon: "⌕" },
+  { to: "/", label: "Overview", end: true, icon: "◧" },
+  { to: "/review", label: "Review queue", icon: "◉", badgeKey: "review" as const },
+  { to: "/search", label: "Search proof", icon: "◈" },
 ];
 
 const TITLES: Record<string, string> = {
@@ -57,7 +57,9 @@ export default function Layout() {
               end={item.end}
               className={({ isActive }) => `nav__item${isActive ? " nav__item--active" : ""}`}
             >
-              <span aria-hidden>{item.icon}</span>
+              <span className="nav__icon" aria-hidden>
+                {item.icon}
+              </span>
               {item.label}
               {item.badgeKey === "review" && stats ? (
                 <span className="nav__badge">{stats.rows_needing_review}</span>
@@ -67,13 +69,17 @@ export default function Layout() {
         </nav>
 
         <div className="sidebar__foot">
-          {USE_MOCK ? (
-            <span title="Set VITE_USE_MOCK=false to hit the FastAPI backend">
-              ● Demo data — backend not connected
-            </span>
-          ) : (
-            <span>● Live backend</span>
-          )}
+          <span
+            className="sidebar__status"
+            title={
+              USE_MOCK
+                ? "Set VITE_USE_MOCK=false to hit the FastAPI backend"
+                : "Connected to the FastAPI backend"
+            }
+          >
+            <span className="sidebar__dot" />
+            {USE_MOCK ? "Demo data — backend not connected" : "Live backend"}
+          </span>
           <span>Built for Unilog · UniHack</span>
         </div>
       </aside>
