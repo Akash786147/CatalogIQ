@@ -281,16 +281,15 @@ export default function RowDetail() {
                 {Object.entries(row.source)
                   .filter(([k]) => k !== "Part_Desc")
                   .map(([k, v]) => {
-                    // "-- Unbranded --" and friends carry no signal — show them
-                    // as the empty placeholders they are, not as data.
-                    const placeholder = v.startsWith("--");
+                    // The backend scrubs "-- Unbranded --" and friends to "" on
+                    // ingest, so an empty string here means the column carried
+                    // no signal. Say that, rather than rendering a blank row.
+                    const empty = !v || v.startsWith("--");
                     return (
                       <div key={k} className="srcrow">
                         <span className="srcrow__key">{k}</span>
-                        <span
-                          className={`srcrow__val${placeholder ? " srcrow__val--placeholder" : ""}`}
-                        >
-                          {v}
+                        <span className={`srcrow__val${empty ? " srcrow__val--placeholder" : ""}`}>
+                          {empty ? "— no value" : v}
                         </span>
                       </div>
                     );
