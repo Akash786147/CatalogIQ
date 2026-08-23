@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "catalogiq"
+version = "0.1.0"
+description = "Evidence-first product content enrichment for industrial distributors"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "python-dotenv>=1.0",
+    "pandas>=2.2",
+    "openpyxl>=3.1",
+    "rapidfuzz>=3.10",
+    "anthropic>=0.40",
+    "typer>=0.15",
+]
+
+[project.optional-dependencies]
+# Heavy ML deps are opt-in so a teammate can get the pipeline running in ~20s.
+# Only the retrieval + classify-shortlist stages need them.
+ml = [
+    "sentence-transformers>=3.3",
+    "faiss-cpu>=1.9",
+]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.28",
+    "ruff>=0.8",
+]
+
+[project.scripts]
+catalogiq = "app.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["core/*.json", "core/schemas/*.json"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
