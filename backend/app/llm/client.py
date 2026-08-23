@@ -9,15 +9,17 @@ layer, not a hard dependency: it classifies, it names abbreviation-grammar
 slots once per family, and it extracts from retrieved document chunks. It
 never freely writes attribute values or descriptions.
 
-Two providers, tried in order, so a rate limit on one does not stop a run:
-  groq    - OpenAI-compatible chat completions, very fast
-  gemini  - Google Generative Language API
+Three providers, tried in order, so a rate limit on one does not stop a run:
+  openrouter - OpenAI-compatible; default model has a 1M context window
+  groq       - OpenAI-compatible chat completions, very fast
+  gemini     - Google Generative Language API
 
 Both are called over plain HTTP rather than via their SDKs. The request
 shapes are small and stable, and it keeps the dependency list to httpx
 instead of two more vendor packages.
 
-Configure with either provider's key (or both):
+Configure any subset of:
+  OPENROUTER_API_KEY=...
   GROQ_API_KEY=...
   GEMINI_API_KEY=...        (GOOGLE_API_KEY also accepted)
 """
@@ -37,6 +39,11 @@ class LLMUnavailable(Exception):
 # running token tracking for the run report
 usage_log: list[dict] = []
 
+# Order the providers are tried in when llm_provider is "auto". OpenRouter
+# leads on context window; Groq is the fast fallback; Gemini backs both up.
+PROVIDER_ORDER = ("openrouter", "groq", "gemini")
+
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
@@ -51,18 +58,55 @@ def _providers() -> list[str]:
     """Configured providers, in the order they should be tried."""
     settings = get_settings()
     preferred = (settings.llm_provider or "auto").lower()
-    available = []
-    if settings.groq_api_key:
-        available.append("groq")
-    if settings.gemini_api_key:
-        available.append("gemini")
+    keys = {
+        "openrouter": settings.openrouter_api_key,
+        "groq": settings.groq_api_key,
+        "gemini": settings.gemini_api_key,
+    }
+    available = [p for p in PROVIDER_ORDER if keys.get(p)]
 
-    if preferred in ("groq", "gemini"):
-        # explicit choice first, but still fall back to the other if it fails
+    if preferred in PROVIDER_ORDER:
+        # explicit choice first, but still fall back to the others if it fails
         return [p for p in [preferred] if p in available] + [
             p for p in available if p != preferred
         ]
     return available
+
+
+def _call_openrouter(system: str, user: str, max_tokens: int) -> str:
+    settings = get_settings()
+    resp = httpx.post(
+        OPENROUTER_URL,
+        timeout=_TIMEOUT,
+        headers={
+            "Authorization": f"Bearer {settings.openrouter_api_key}",
+            # OpenRouter uses these for app attribution on its rankings page.
+            "HTTP-Referer": "https://github.com/catalogiq",
+            "X-Title": "CatalogIQ",
+        },
+        json={
+            "model": settings.openrouter_model,
+            "max_tokens": max(max_tokens, _MIN_TOKENS),
+            "temperature": 0,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        },
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    # OpenRouter returns HTTP 200 with an `error` body on upstream failures.
+    if data.get("error"):
+        raise ValueError(str(data["error"]))
+    usage = data.get("usage") or {}
+    usage_log.append({
+        "provider": "openrouter",
+        "model": settings.openrouter_model,
+        "input_tokens": usage.get("prompt_tokens", 0),
+        "output_tokens": usage.get("completion_tokens", 0),
+    })
+    return data["choices"][0]["message"]["content"] or ""
 
 
 def _call_groq(system: str, user: str, max_tokens: int) -> str:
@@ -130,7 +174,11 @@ def _call_gemini(system: str, user: str, max_tokens: int) -> str:
     return "".join(p.get("text", "") for p in parts)
 
 
-_CALLERS = {"groq": _call_groq, "gemini": _call_gemini}
+_CALLERS = {
+    "openrouter": _call_openrouter,
+    "groq": _call_groq,
+    "gemini": _call_gemini,
+}
 
 
 def complete(system: str, user: str, max_tokens: int = 512) -> str:
@@ -141,7 +189,10 @@ def complete(system: str, user: str, max_tokens: int = 512) -> str:
     """
     providers = _providers()
     if not providers:
-        raise LLMUnavailable("No LLM provider configured (set GROQ_API_KEY or GEMINI_API_KEY)")
+        raise LLMUnavailable(
+            "No LLM provider configured "
+            "(set OPENROUTER_API_KEY, GROQ_API_KEY, or GEMINI_API_KEY)"
+        )
 
     errors = []
     for name in providers:

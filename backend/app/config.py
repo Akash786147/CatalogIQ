@@ -13,13 +13,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CATALOGIQ_", env_file=".env", extra="ignore")
 
-    # LLM providers. Either or both may be set; "auto" tries Groq then Gemini.
-    llm_provider: str = "auto"  # "auto" | "groq" | "gemini"
+    # LLM providers. Any subset may be configured; "auto" tries them in
+    # PROVIDER_ORDER (OpenRouter first for its 1M context, then Groq, then
+    # Gemini), falling through on rate limits or errors.
+    llm_provider: str = "auto"  # "auto" | "openrouter" | "groq" | "gemini"
+    openrouter_api_key: str | None = None
     groq_api_key: str | None = None
     gemini_api_key: str | None = None
     # Model ids verified against each provider's /models listing. Groq needs an
     # explicit id; Gemini's "-latest" alias tracks the current flash model, so a
     # deprecation does not 404 the pipeline.
+    openrouter_model: str = "stealth/ox-alpha"
     groq_model: str = "openai/gpt-oss-120b"
     gemini_model: str = "gemini-flash-latest"
 
@@ -38,6 +42,8 @@ class Settings(BaseSettings):
     # (distributor, description signature), so the sample needs ~20; this is a
     # backstop that keeps a first page load bounded on an unfamiliar dataset.
     max_classification_llm_calls: int = 60
+
+    # Stage 1's grouped calls are independent, so they run concurrently.
     classification_concurrency: int = 8
 
     # fuzzy vocabulary match: below this score (0-100), reject rather than snap
@@ -79,6 +85,8 @@ def get_settings() -> Settings:
             load_dotenv(env_path, override=False)
 
     s = Settings()
+    if not s.openrouter_api_key:
+        s.openrouter_api_key = os.environ.get("OPENROUTER_API_KEY")
     if not s.groq_api_key:
         s.groq_api_key = os.environ.get("GROQ_API_KEY")
     if not s.gemini_api_key:

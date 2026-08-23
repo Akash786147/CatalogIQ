@@ -7,6 +7,7 @@ not depend on this server running.
 from __future__ import annotations
 
 import io
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -37,6 +38,29 @@ app.add_middleware(
 
 # The reviewer-UI endpoints (/api/...). The CLI remains the evaluated entrypoint.
 app.include_router(api_router)
+
+
+@app.on_event("startup")
+def prewarm_run() -> None:
+    """Start the first pipeline run at boot, in the background.
+
+    Without this the first UI request pays for the whole run. That is a few
+    seconds with no LLM configured, but minutes when Stage 1 is classifying
+    against a slow reasoning model - long enough to look broken. Warming here
+    means the run is usually finished, or well underway, by the time anyone
+    opens the page.
+    """
+    import threading
+
+    from app.api.routes import store
+
+    def warm() -> None:
+        try:
+            store.run()
+        except Exception:  # a failed prewarm must not stop the server booting
+            logging.getLogger(__name__).exception("prewarm run failed")
+
+    threading.Thread(target=warm, daemon=True).start()
 
 
 @app.get("/health")

@@ -37,3 +37,6 @@ Thumbs.db
 
 # Local UI screenshots (verification only)
 .shots/
+
+# Superseded nested copy of the backend (content now lives in backend/)
+CatalogIQ/
