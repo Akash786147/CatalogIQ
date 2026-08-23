@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { ConfidenceHistogram, ProvenanceBar } from "@/components/Charts";
+import UploadBar from "@/components/UploadBar";
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 const num = new Intl.NumberFormat("en-US");
@@ -35,6 +36,9 @@ export default function Dashboard() {
               its own — no need to refresh.
             </p>
           ) : null}
+          <div style={{ marginTop: 18 }}>
+            <UploadBar onDark />
+          </div>
         </div>
         <div className="tiles">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -70,13 +74,16 @@ export default function Dashboard() {
               below can be traced to its source, and nothing was invented to fill a blank.
             </p>
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link to="/review" className="btn btn--accent">
-              Open the review queue
-            </Link>
-            <Link to="/search" className="btn btn--ghost-light">
-              See the search proof
-            </Link>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Link to="/review" className="btn btn--accent">
+                Open the review queue
+              </Link>
+              <Link to="/search" className="btn btn--ghost-light">
+                See the search proof
+              </Link>
+            </div>
+            <UploadBar onDark />
           </div>
         </div>
       </section>

@@ -63,17 +63,12 @@ def prewarm_run() -> None:
     means the run is usually finished, or well underway, by the time anyone
     opens the page.
     """
-    import threading
-
     from app.api.routes import store
 
-    def warm() -> None:
-        try:
-            store.run()
-        except Exception:  # a failed prewarm must not stop the server booting
-            logging.getLogger(__name__).exception("prewarm run failed")
-
-    threading.Thread(target=warm, daemon=True).start()
+    if not get_settings().prewarm:
+        logging.getLogger(__name__).info("prewarm disabled (CATALOGIQ_PREWARM=false)")
+        return
+    store.start_background()
 
 
 @app.get("/health")

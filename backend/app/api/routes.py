@@ -14,22 +14,34 @@ Endpoints (all mounted under /api):
     GET  /api/rows/{row_id}    one product with full provenance
     POST /api/corrections      save a reviewer correction as a propagating rule
     GET  /api/search           raw vs enriched search comparison
+    POST /api/runs/upload      enrich an uploaded CSV, making it the current run
+    GET  /api/export.csv       download the current run as the 252-column sheet
 """
 from __future__ import annotations
 
+import io
 import logging
 import threading
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+import pandas as pd
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.config import get_settings
 from app.core.classpaths import get_classpath
 from app.core.schema import Cell, EnrichedRecord, ProvenanceState
-from app.io.readers import load_input_csv
+from app.io.readers import (
+    REQUIRED_INPUT_COLUMNS,
+    _scrub_placeholder,
+    load_input_csv,
+    load_output_header,
+)
+from app.io.writers import _row_to_output_dict
 from app.llm.client import active_provider, usage_log
 from app.pipeline import stage7_corrections as corrections
 from app.pipeline.run import enrich_dataframe
@@ -84,13 +96,22 @@ class RunStore:
         return bool(self.records)
 
     def run(self, force: bool = False) -> None:
+        """Run the pipeline over the configured sample input."""
         settings = get_settings()
         input_path = settings.input_csv
         if not input_path.exists():
             self.state = "failed"
             self.error = f"No input CSV at {input_path}"
             raise HTTPException(503, self.error)
+        self.run_dataframe(load_input_csv(input_path), input_path.name, force=force)
 
+    def run_dataframe(self, df: "pd.DataFrame", source_name: str, force: bool = False) -> None:
+        """Run the pipeline over an already-loaded frame.
+
+        Shared by the sample-input path and the upload path, so an uploaded CSV
+        becomes the current run and the whole reviewer UI reflects it.
+        """
+        settings = get_settings()
         with self._lock:
             # Double-checked: a caller that queued behind a run in progress must
             # not start the whole pipeline over again once it acquires the lock.
@@ -99,7 +120,6 @@ class RunStore:
             self.state = "running"
             try:
                 t0 = time.time()
-                df = load_input_csv(input_path)
                 records, stats = enrich_dataframe(df)
 
                 # Reviewer corrections from a previous session apply on every run.
@@ -110,7 +130,7 @@ class RunStore:
                 self.records = records
                 self.raw_rows = df.to_dict("records")
                 self.stats = stats
-                self.input_name = input_path.name
+                self.input_name = source_name
                 self.completed_at = datetime.now(timezone.utc).isoformat()
                 self.runtime_seconds = round(time.time() - t0, 2)
                 self.state = "ready"
@@ -120,17 +140,30 @@ class RunStore:
                 self.error = str(e)
                 raise
 
-    def start_background(self) -> None:
-        """Kick off a run without blocking the caller."""
-        if self.state == "running" or self.loaded:
-            return
-        threading.Thread(target=lambda: self._warm_quietly(), daemon=True).start()
+    def start_background(self, df=None, source_name: str = "", force: bool = False) -> None:
+        """Kick off a run without blocking the caller.
 
-    def _warm_quietly(self) -> None:
-        try:
-            self.run()
-        except Exception:
-            log.exception("background run failed")
+        An upload (df given) is never dropped: if a run is already in progress
+        its thread queues on the lock and runs as soon as that finishes.
+        Skipping here would accept the file and silently discard it.
+
+        A warm request (df is None) IS skipped when a run is already going or
+        already landed - there is nothing new to compute.
+        """
+        if df is None and (self.state == "running" or self.loaded) and not force:
+            return
+
+        def work() -> None:
+            try:
+                if df is None:
+                    self.run(force=force)
+                else:
+                    # force=True: an uploaded file replaces whatever is loaded.
+                    self.run_dataframe(df, source_name, force=True)
+            except Exception:
+                log.exception("background run failed")
+
+        threading.Thread(target=work, daemon=True).start()
 
     def ensure(self) -> None:
         """Guarantee a run is available, WITHOUT blocking the request on it.
@@ -242,6 +275,72 @@ def _row_json(record: EnrichedRecord, raw: dict) -> dict[str, Any]:
 # --------------------------------------------------------------------------
 # Endpoints
 # --------------------------------------------------------------------------
+
+@router.post("/runs/upload")
+async def upload_run(file: UploadFile = File(...)) -> dict:
+    """Enrich an uploaded CSV and make it the current run.
+
+    This is the evaluation flow: six columns of distributor shorthand in, the
+    full 252-column sheet out. Uploading replaces whatever run is loaded, so the
+    review queue, search and export all reflect the new file.
+
+    Runs in the background and returns immediately - the client polls
+    /api/status, exactly as it does for the startup warm.
+    """
+    if not (file.filename or "").lower().endswith(".csv"):
+        raise HTTPException(400, "Expected a .csv file")
+
+    raw = await file.read()
+    if not raw.strip():
+        raise HTTPException(400, "That file is empty")
+
+    try:
+        df = pd.read_csv(io.BytesIO(raw), dtype=str, keep_default_na=False)
+    except Exception as e:
+        raise HTTPException(400, f"Could not parse that CSV: {e}") from e
+
+    missing = [c for c in REQUIRED_INPUT_COLUMNS if c not in df.columns]
+    if missing:
+        raise HTTPException(
+            400,
+            f"Missing required column(s): {', '.join(missing)}. "
+            f"Expected: {', '.join(REQUIRED_INPUT_COLUMNS)}",
+        )
+    if df.empty:
+        raise HTTPException(400, "That CSV has headers but no rows")
+
+    # Same placeholder scrubbing the file reader does, so "-- Unbranded --"
+    # never reaches the pipeline as if it were a brand.
+    for col in ["E1_Brand", "Unilog_Brand", "DIB_Brand", "Part_Manuf"]:
+        df[col] = df[col].map(_scrub_placeholder)
+    df["Part_Desc"] = df["Part_Desc"].fillna("").astype(str)
+    df["Mfg_Part_Num"] = df["Mfg_Part_Num"].fillna("").astype(str)
+    df = df.reset_index(drop=True)
+
+    store.start_background(df=df, source_name=file.filename or "upload.csv", force=True)
+    return {"status": "accepted", "rows": len(df), "input_file": file.filename}
+
+
+@router.get("/export.csv")
+def export_csv():
+    """The deliverable: the current run as the 252-column delivery format."""
+    store.ensure()
+    settings = get_settings()
+    header = load_output_header(settings.delivery_format_csv)
+    rows = [
+        _row_to_output_dict(record, header, raw)
+        for record, raw in zip(store.records, store.raw_rows)
+    ]
+    buf = io.StringIO()
+    pd.DataFrame(rows, columns=header).to_csv(buf, index=False)
+    buf.seek(0)
+    name = Path(store.input_name).stem or "catalogiq"
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{name}_enriched.csv"'},
+    )
+
 
 @router.get("/status")
 def run_status() -> dict:

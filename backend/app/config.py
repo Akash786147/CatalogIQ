@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     # fuzzy vocabulary match: below this score (0-100), reject rather than snap
     lov_fuzzy_threshold: int = 88
 
+    # Build the sample run at startup so the demo page loads fast. Turn off when
+    # you want to upload your own CSV immediately - a prewarm of the full sample
+    # holds the run lock for minutes and any upload queues behind it.
+    prewarm: bool = True
+
     # Comma-separated origins allowed to call this API cross-origin, for when
     # the frontend is deployed away from the backend. Localhost and *.vercel.app
     # are always permitted - see app/main.py.

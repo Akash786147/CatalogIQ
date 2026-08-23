@@ -120,6 +120,36 @@ export const api = {
     return request<SearchComparison>(`/api/search?q=${encodeURIComponent(query)}`);
   },
 
+  /** Enrich an uploaded CSV and make it the current run.
+   *
+   *  Returns as soon as the file is accepted; the run happens in the
+   *  background, so callers poll getStatus() from there.
+   *
+   *  No Content-Type header here on purpose — the browser must set the
+   *  multipart boundary itself, and forcing application/json breaks the upload.
+   */
+  async uploadCsv(file: File): Promise<{ status: string; rows: number; input_file: string }> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${API_BASE}/api/runs/upload`, { method: "POST", body: form });
+    if (!res.ok) {
+      let detail = `${res.status} ${res.statusText}`;
+      try {
+        const body = await res.json();
+        if (body?.detail) detail = String(body.detail);
+      } catch {
+        /* non-JSON error body */
+      }
+      throw new ApiError(detail, res.status);
+    }
+    return res.json();
+  },
+
+  /** Absolute URL for the 252-column export of the current run. */
+  exportUrl(): string {
+    return `${API_BASE}/api/export.csv`;
+  },
+
   getManufacturers(): Promise<string[]> {
     return request<string[]>("/api/manufacturers");
   },
