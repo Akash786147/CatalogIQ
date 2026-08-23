@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     # Comma-separated origins allowed to call this API cross-origin, for when
     # the frontend is deployed away from the backend. Localhost and *.vercel.app
     # are always permitted - see app/main.py.
-    cors_origins: str = ""
+    cors_origins: str = "https://catalog-iq-fawn.vercel.app , https://catalog-m8j9uiq5b-akash786147s-projects.vercel.app"
 
     data_dir: Path = Path(__file__).resolve().parents[2] / "data"
     raw_dir: Path = data_dir / "raw"
