@@ -2,8 +2,8 @@
 Headless entrypoint - this is what gets evaluated. No server, no frontend
 required.
 
-    python -m app.cli enrich --input ../data/raw/input_sample.csv \
-                              --output ../data/output/enriched.csv
+    python -m app.cli enrich --input data/raw/input_sample.csv \
+                              --output data/output/enriched.csv
 
     python -m app.cli correct --scope-field Part_Manuf \
                                --scope-value "Black & Decker/dewlt (2585)" \

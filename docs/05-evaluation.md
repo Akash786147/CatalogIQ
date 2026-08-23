@@ -3,7 +3,7 @@
 Field-level accuracy is table stakes; everyone will show it. These are the
 metrics that signal we know what we're doing.
 
-Run: `python -m app.cli evaluate --pred ../data/output/enriched.csv --truth ../data/raw/delivery_format.csv`
+Run: `python -m app.cli evaluate --pred ../backend/data/output/enriched.csv --truth ../backend/data/raw/delivery_format.csv`
 
 | # | Metric | Why it matters |
 |---|---|---|
@@ -37,7 +37,7 @@ Steps 3–4 are the moment. Everything else is setup.
 
 ## Ground truth caveat
 
-`data/raw/delivery_format.csv` contains **2 labelled rows**. That is enough to
+`backend/data/raw/delivery_format.csv` contains **2 labelled rows**. That is enough to
 pin the composition formulas ([03](03-composition-rules.md)) and the formatting
 invariants, and **not** enough to compute a meaningful accuracy number.
 

@@ -52,15 +52,27 @@ class Settings(BaseSettings):
     # Comma-separated origins allowed to call this API cross-origin, for when
     # the frontend is deployed away from the backend. Localhost and *.vercel.app
     # are always permitted - see app/main.py.
-    cors_origins: str = "https://catalog-iq-fawn.vercel.app , https://catalog-m8j9uiq5b-akash786147s-projects.vercel.app"
+    cors_origins: str = ""
 
-    data_dir: Path = Path(__file__).resolve().parents[2] / "data"
-    raw_dir: Path = data_dir / "raw"
-    output_dir: Path = data_dir / "output"
+    # Lives inside backend/ so the service is self-contained: a host told to
+    # build from the `backend` directory (Railway, Docker) gets the sample
+    # input and the delivery-format header in its image.
+    data_dir: Path = Path(__file__).resolve().parents[1] / "data"
 
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    # raw_dir and output_dir must derive from data_dir at access time, not at
+    # class-definition time - as plain fields they were bound to the default
+    # once at import, so setting CATALOGIQ_DATA_DIR moved nothing.
+    @property
+    def raw_dir(self) -> Path:
+        return self.data_dir / "raw"
+
+    @property
+    def output_dir(self) -> Path:
+        return self.data_dir / "output"
 
     @property
     def input_csv(self) -> Path:

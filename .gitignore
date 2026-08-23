@@ -20,9 +20,9 @@ dist/
 
 # Data — raw inputs are checked in on purpose (small, and they ARE the spec).
 # Generated output is not.
-data/output/*
-!data/output/.gitkeep
-data/cache/
+backend/data/output/*
+!backend/data/output/.gitkeep
+backend/data/cache/
 *.sqlite
 *.sqlite3
 

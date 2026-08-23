@@ -1,7 +1,7 @@
 # 03 — Composition rules
 
 Reverse-engineered from the two ground-truth rows in
-`data/raw/delivery_format.csv`. **No LLM runs in this stage.** These are pure
+`backend/data/raw/delivery_format.csv`. **No LLM runs in this stage.** These are pure
 functions over the validated fact layer, which is why the five descriptions
 cannot contradict each other.
 

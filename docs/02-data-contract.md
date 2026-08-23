@@ -23,7 +23,7 @@ Placeholder tokens that must be treated as **null, not as a value**:
 
 Headers are checked in verbatim at
 `backend/app/core/delivery_headers.json`, extracted programmatically from
-`data/raw/delivery_format.csv`. **They are never hand-typed and never
+`backend/data/raw/delivery_format.csv`. **They are never hand-typed and never
 reordered.** The writer emits all 252 in the original order, populated or blank.
 
 ### Column groups

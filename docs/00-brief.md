@@ -32,7 +32,7 @@ headless.** Everything else is a surface on top of it.
 
 ## What the input really contains
 
-Profiled from `data/raw/input_sample.csv` (1,000 rows, 76 distinct
+Profiled from `backend/data/raw/input_sample.csv` (1,000 rows, 76 distinct
 `Part_Manuf`):
 
 ### Brand columns are almost entirely empty

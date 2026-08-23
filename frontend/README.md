@@ -30,18 +30,11 @@ scoped to the distributor, and the response reports its blast radius —
 Every component talks to [`src/lib/api.ts`](src/lib/api.ts) and nothing else.
 That is the only file that knows a network exists.
 
-**Today** it serves fixtures from `src/lib/mockData.ts`, whose `source` blocks
-are real rows from `data/raw/input_sample.csv`.
+It calls the FastAPI backend directly — there is no mock layer.
 
-**To go live:**
-
-```bash
-echo "VITE_USE_MOCK=false" > .env.local
-```
-
-Then start FastAPI on `:8000`. `vite.config.ts` proxies `/api` there, so no CORS
-setup is needed. No component changes — the mock and live paths return the same
-types.
+In development, start FastAPI on `:8000`. `vite.config.ts` proxies `/api` there, so no CORS
+setup is needed in development. When deployed, set `VITE_API_BASE` to the
+backend's URL and add that origin to `CATALOGIQ_CORS_ORIGINS` on the backend.
 
 The endpoints `api.ts` expects:
 

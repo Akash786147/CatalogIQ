@@ -55,7 +55,7 @@ Three call sites only: classify (from a ~10-item shortlist), induce a template
 
 ### D9 — Headers are extracted, never typed
 `backend/app/core/delivery_headers.json` is generated from
-`data/raw/delivery_format.csv` by `scripts/extract_headers.py`. 252 columns,
+`backend/data/raw/delivery_format.csv` by `scripts/extract_headers.py`. 252 columns,
 original order, byte-exact.
 
 ---

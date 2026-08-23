@@ -46,11 +46,11 @@ It's **"AI fills the sheet and tells you exactly which 8% of cells to look at."*
 ## Repo layout
 
 ```
-docs/          Start here. The design, the data contract, the decisions.
-data/raw/      The provided sample input + delivery format (ground truth).
-backend/       Python: FastAPI + the enrichment pipeline.
-frontend/      React + Vite: the reviewer queue.
-scripts/       One-off analysis and evaluation runners.
+docs/              Start here. The design, the data contract, the decisions.
+backend/           Python: FastAPI + the enrichment pipeline.
+backend/data/raw/  The provided sample input + delivery format (ground truth).
+frontend/          React + Vite: the reviewer queue.
+scripts/           One-off analysis and evaluation runners.
 ```
 
 ## Docs — read in this order
@@ -71,7 +71,7 @@ scripts/       One-off analysis and evaluation runners.
 cd backend
 python -m venv .venv && .venv/Scripts/activate     # Windows
 pip install -e ".[dev]"
-cp ../.env.example ../.env                          # add ANTHROPIC_API_KEY
+cp .env.example .env                                # add GROQ_API_KEY / OPENROUTER_API_KEY
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -88,8 +88,8 @@ The frontend proxies `/api` to `http://localhost:8000` (see
 **Headless (this is what gets evaluated)**
 ```bash
 cd backend
-python -m app.cli enrich --input ../data/raw/input_sample.csv \
-                         --output ../data/output/enriched.csv
+python -m app.cli enrich --input data/raw/input_sample.csv \
+                         --output data/output/enriched.csv
 ```
 
 ## Status
