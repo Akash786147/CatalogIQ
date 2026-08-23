@@ -49,9 +49,18 @@ class Settings(BaseSettings):
     # fuzzy vocabulary match: below this score (0-100), reject rather than snap
     lov_fuzzy_threshold: int = 88
 
+    # Comma-separated origins allowed to call this API cross-origin, for when
+    # the frontend is deployed away from the backend. Localhost and *.vercel.app
+    # are always permitted - see app/main.py.
+    cors_origins: str = ""
+
     data_dir: Path = Path(__file__).resolve().parents[2] / "data"
     raw_dir: Path = data_dir / "raw"
     output_dir: Path = data_dir / "output"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     @property
     def input_csv(self) -> Path:

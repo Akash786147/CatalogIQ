@@ -27,11 +27,24 @@ from app.pipeline.run import enrich_dataframe
 
 app = FastAPI(title="CatalogIQ", version="0.1.0")
 
-# The Vite dev server proxies /api, so this only matters when the frontend is
-# served from a different origin (a built bundle on another port, say).
+# In development the Vite server proxies /api, so origins never differ. Once
+# the frontend is deployed (Vercel) and the backend lives elsewhere, the browser
+# calls this API cross-origin and every request is preflighted - so the deployed
+# frontend's origin has to be allowed explicitly.
+#
+# Set CATALOGIQ_CORS_ORIGINS to a comma-separated list, e.g.
+#   CATALOGIQ_CORS_ORIGINS=https://catalogiq.vercel.app
+# Vercel preview deployments get a new subdomain per push, so those are matched
+# by regex rather than listed one by one.
+_settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        *_settings.cors_origin_list,
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_methods=["*"],
     allow_headers=["*"],
 )
